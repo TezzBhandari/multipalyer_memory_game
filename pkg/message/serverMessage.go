@@ -1,7 +1,5 @@
 package message
 
-import "github.com/TezzBhandari/mgs/pkg/gameState"
-
 type ServerMessageType int
 
 const (
@@ -10,6 +8,6 @@ const (
 )
 
 type ServerMessage struct {
-	MsgType ServerMessageType   `json:"msgType"`
-	Data    gameState.GameState `json:"data"`
+	MsgType ServerMessageType `json:"msgType"`
+	Data    any               `json:"data,omitempty"`
 }

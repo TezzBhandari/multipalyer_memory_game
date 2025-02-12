@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/TezzBhandari/mgs/pkg/room"
+	"github.com/TezzBhandari/mgs/pkg/hub"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -16,17 +16,17 @@ type GameServer struct {
 	addr   string
 	s      http.Server
 	router *mux.Router
-	rooms  *room.Rooms
+	hub    *hub.Hub
 }
 
 func NewServer(addr string) *GameServer {
 	router := mux.NewRouter()
-	rooms := room.NewRooms()
+	hub := hub.NewHub()
 
 	return &GameServer{
 		router: router,
 		addr:   addr,
-		rooms:  rooms,
+		hub:    hub,
 		s: http.Server{
 			Addr:    addr,
 			Handler: router,
@@ -58,7 +58,7 @@ func (gs *GameServer) handleWsConnection(rw http.ResponseWriter, r *http.Request
 		http.Error(rw, "updgrade failed", http.StatusBadRequest)
 	}
 
-    log.Println("connection upgraded")
+	log.Println("connection upgraded")
 
-	gs.rooms.JoinRoom(wsc)
+	gs.hub.JoinRoom(wsc)
 }

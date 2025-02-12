@@ -9,6 +9,6 @@ const (
 
 type ClientMessage struct {
 	MsgType  ClientMessageType `json:"msgType"`
-	PlayerId int64             `json:"playerId"`
-	RoomId   int64             `json:"roomId"`
+	PlayerId int             `json:"playerId"`
+	RoomId   int             `json:"roomId"`
 }
