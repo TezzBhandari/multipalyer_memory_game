@@ -1,27 +1,24 @@
 package gameState
 
 type GameState struct {
-	Counter int   `json:"counter"`
-	Turn    uint8 `json:"turn"`
+	Counter int `json:"counter"`
+	Turn    int `json:"turn"`
 }
 
 func NewGameState() *GameState {
-	return &GameState{
-		Counter: 0,
-		Turn:    1,
-	}
+	return &GameState{}
 }
 
 func (gs *GameState) GetGameState() int {
 	return gs.Counter
 }
 
-func (gs *GameState) IncCounter() {
+func (gs *GameState) IncCounter(nextTurn int) {
 	gs.Counter++
-	gs.Turn = 3 - gs.Turn
+	gs.Turn = nextTurn
 }
 
-func (gs *GameState) DecCounter() {
+func (gs *GameState) DecCounter(nextTurn int) {
 	gs.Counter--
-	gs.Turn = 3 - gs.Turn
+	gs.Turn = nextTurn
 }

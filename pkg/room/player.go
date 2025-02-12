@@ -15,7 +15,7 @@ var (
 )
 
 type Player struct {
-	id   int
+	Id   int
 	conn *websocket.Conn
 	room *Room
 	msgs chan message.ServerMessage
@@ -28,7 +28,7 @@ func NewPlayer(conn *websocket.Conn, room *Room) *Player {
 	mutex.Unlock()
 
 	return &Player{
-		id:   playerId,
+		Id:   playerId,
 		msgs: make(chan message.ServerMessage, 10),
 		conn: conn,
 		room: room,
@@ -38,7 +38,7 @@ func NewPlayer(conn *websocket.Conn, room *Room) *Player {
 func (p *Player) read() {
 	defer func() {
 		// remove the player from  or check the status to offline so that only that player can reconnect no extra new players
-		p.room.remove(p.id)
+		p.room.remove(p.Id)
 		p.conn.Close()
 	}()
 
@@ -52,13 +52,13 @@ func (p *Player) read() {
 
 		p.room.handleClientMsg(*msg)
 
-		fmt.Printf("clientId:%d\n", p.id)
+		fmt.Printf("msg recieved from clientId:%d\n", p.Id)
 	}
 }
 
 func (p *Player) write() {
 	defer func() {
-		p.room.remove(p.id)
+		p.room.remove(p.Id)
 		p.conn.Close()
 	}()
 
@@ -76,7 +76,7 @@ func (p *Player) Send(msg message.ServerMessage) {
 	select {
 	case p.msgs <- msg:
 	default:
-		fmt.Printf("write msg dropped for %d", p.id)
+		fmt.Printf("write msg dropped for %d", p.Id)
 	}
 }
 
