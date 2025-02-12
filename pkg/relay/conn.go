@@ -1,4 +1,4 @@
-package server
+package relay
 
 import (
 	"fmt"
@@ -55,7 +55,6 @@ func (c *Conn) msg(msg []byte) {
 	select {
 	case c.msgs <- msg:
 	default:
-
 		fmt.Printf("msg dropped for %d, msg: %s", c.id, msg)
 		time.Sleep(15 * time.Second)
 	}

@@ -1,4 +1,4 @@
-package server
+package relay
 
 import (
 	"runtime"
@@ -7,10 +7,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type ServerMessage struct {
+	Counter int `json:"counter"`
+}
+
 type Relay struct {
 	id      int
 	players map[int]*Conn
-	C       chan []byte
 
 	send int
 	sync.Mutex
@@ -18,11 +21,9 @@ type Relay struct {
 
 func NewRelay() *Relay {
 	return &Relay{
-		C:       make(chan []byte, 10),
 		players: make(map[int]*Conn),
 		send:    runtime.NumCPU(),
 	}
-
 }
 
 func (r *Relay) relay(data []byte) {
@@ -63,7 +64,7 @@ func (r *Relay) remove(id int) {
 	r.Unlock()
 }
 
-func (r *Relay) add(w *websocket.Conn) {
+func (r *Relay) Add(w *websocket.Conn) {
 	r.Lock()
 	r.id++
 	id := r.id
