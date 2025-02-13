@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -12,8 +13,30 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var addr = flag.String("addr", "localhost:7070", "http service address")
+var addr = flag.String("addr", "localhost:42069", "http service address")
 var msg = flag.String("msg", "hi", "msg")
+
+var (
+	roomId   int
+	playerId int
+	send     bool = false
+)
+
+type ServerMessage struct {
+	MsgType int `json:"msgType"`
+	Data    any `json:"data,omitempty"`
+}
+
+type ClientMessage struct {
+	MsgType  int `json:"msgType"`
+	RoomId   int `json:"roomId"`
+	PlayerId int `json:"playerId"`
+}
+
+type JoinRoom struct {
+	RoomId   int `json:"roomId"`
+	PlayerId int `json:"playerId"`
+}
 
 func main() {
 	flag.Parse()
@@ -35,13 +58,28 @@ func main() {
 
 	go func() {
 		defer close(done)
+		msg := &ServerMessage{}
+
 		for {
-			_, message, err := c.ReadMessage()
+			err := c.ReadJSON(msg)
 			if err != nil {
 				log.Println("read:", err)
 				return
 			}
-			fmt.Printf("recv: %s\n", message)
+
+			if msg.MsgType == 1 {
+				log.Println("joined a room")
+				roomId, playerId = extractRoomData(msg.Data)
+				log.Println("set roomId and playerId", roomId, playerId)
+				if roomId == -1 || playerId == -1 {
+					log.Println("didn't get room and player id")
+					break
+				}
+			} else if msg.MsgType == 2 {
+				send = true
+			}
+
+			fmt.Printf("recv: %v %d %d\n", msg, playerId, roomId)
 		}
 	}()
 
@@ -53,11 +91,22 @@ func main() {
 		case <-done:
 			return
 		case <-ticker.C:
-			err := c.WriteMessage(websocket.BinaryMessage, []byte([]byte(*msg)))
-			if err != nil {
-				log.Println("write:", err)
-				return
+			if send {
+				clientMsg := ClientMessage{
+					MsgType:  1,
+					PlayerId: playerId,
+					RoomId:   roomId,
+				}
+				log.Println("sending msg to the server", clientMsg)
+				err := c.WriteJSON(clientMsg)
+				if err != nil {
+					log.Println("write:", err)
+					return
+				}
+			} else {
+				log.Println("not ready yet")
 			}
+
 		case <-interrupt:
 			log.Println("interrupt")
 
@@ -75,4 +124,23 @@ func main() {
 			return
 		}
 	}
+}
+
+// Extracts roomId and playerId from `Data`
+func extractRoomData(data any) (int, int) {
+	// Convert `data` (map) to JSON bytes
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error re-marshaling Data:", err)
+		return -1, -1
+	}
+
+	var roomData JoinRoom
+	if err := json.Unmarshal(dataBytes, &roomData); err != nil {
+		fmt.Println("Error decoding Data into RoomData struct:", err)
+		return -1, -1
+	}
+
+	fmt.Printf("Extracted Data → RoomID: %d, PlayerID: %d\n", roomData.RoomId, roomData.PlayerId)
+	return roomData.RoomId, roomData.PlayerId
 }

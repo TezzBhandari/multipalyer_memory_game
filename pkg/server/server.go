@@ -10,7 +10,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+var (
+	connectionCount int = 0
+)
 
 type GameServer struct {
 	addr   string
@@ -39,6 +44,10 @@ func (gs *GameServer) Start() error {
 		rw.Write([]byte("server status ok"))
 	})
 
+	gs.router.HandleFunc("/connection-count", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write([]byte(fmt.Sprintf("%d", connectionCount)))
+	})
+
 	gs.router.HandleFunc("/game", func(rw http.ResponseWriter, r *http.Request) {
 		gs.handleWsConnection(rw, r)
 
@@ -58,7 +67,7 @@ func (gs *GameServer) handleWsConnection(rw http.ResponseWriter, r *http.Request
 		http.Error(rw, "updgrade failed", http.StatusBadRequest)
 	}
 
+	connectionCount++
 	log.Println("connection upgraded")
-
 	gs.hub.JoinRoom(wsc)
 }
