@@ -4,9 +4,24 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/TezzBhandari/mgs/pkg/message"
 	"github.com/gorilla/websocket"
+)
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
 )
 
 var (
@@ -42,11 +57,24 @@ func (p *Player) read() {
 		p.conn.Close()
 	}()
 
+	p.conn.SetReadLimit(maxMessageSize)
+	p.conn.SetReadDeadline(time.Now().Add(pongWait))
+	p.conn.SetPongHandler(func(string) error {
+		log.Println("pong")
+		p.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	for {
 		msg := &message.ClientMessage{}
 		err := p.conn.ReadJSON(msg)
 		if err != nil {
-			fmt.Println(err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v\n", err)
+				break
+			}
+
+			log.Printf("error: %v\n", err)
 			break
 		}
 
@@ -57,17 +85,34 @@ func (p *Player) read() {
 }
 
 func (p *Player) write() {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		ticker.Stop()
 		p.room.remove(p.Id)
 		p.conn.Close()
+
 	}()
 
 	for {
-		msg := <-p.msgs
-		log.Println("message just before writing", msg)
-		err := p.conn.WriteJSON(msg)
-		if err != nil {
-			break
+		select {
+		case msg, ok := <-p.msgs:
+			if !ok {
+				// The hub closed the channel.
+				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			log.Println("message just before writing", msg)
+			err := p.conn.WriteJSON(msg)
+			if err != nil {
+				break
+			}
+
+		case <-ticker.C:
+			log.Println("ping")
+			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				break
+			}
 		}
 	}
 }
